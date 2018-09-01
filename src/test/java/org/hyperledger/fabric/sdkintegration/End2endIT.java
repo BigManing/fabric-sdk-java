@@ -476,7 +476,7 @@ public class End2endIT {
             instantiateProposalRequest.setChaincodeID(chaincodeID);
             instantiateProposalRequest.setChaincodeLanguage(CHAIN_CODE_LANG);
             instantiateProposalRequest.setFcn("init");
-            instantiateProposalRequest.setArgs(new String[] {"a", "500", "b", "" + (200 + delta)});
+            instantiateProposalRequest.setArgs(new String[]{"a", "500", "b", "" + (200 + delta)});
             Map<String, byte[]> tm = new HashMap<>();
             tm.put("HyperLedgerFabric", "InstantiateProposalRequest:JavaSDK".getBytes(UTF_8));
             tm.put("method", "InstantiateProposalRequest".getBytes(UTF_8));
@@ -666,7 +666,7 @@ public class End2endIT {
                     String expect = "" + (300 + delta);
                     out("Now query chaincode for the value of b.");
                     QueryByChaincodeRequest queryByChaincodeRequest = client.newQueryProposalRequest();
-                    queryByChaincodeRequest.setArgs(new String[] {"b"});
+                    queryByChaincodeRequest.setArgs(new String[]{"b"});
                     queryByChaincodeRequest.setFcn("query");
                     queryByChaincodeRequest.setChaincodeID(chaincodeID);
 
@@ -813,9 +813,9 @@ public class End2endIT {
 
             //example of setting keepAlive to avoid timeouts on inactive http2 connections.
             // Under 5 minutes would require changes to server side to accept faster ping rates.
-            ordererProperties.put("grpc.NettyChannelBuilderOption.keepAliveTime", new Object[] {5L, TimeUnit.MINUTES});
-            ordererProperties.put("grpc.NettyChannelBuilderOption.keepAliveTimeout", new Object[] {8L, TimeUnit.SECONDS});
-            ordererProperties.put("grpc.NettyChannelBuilderOption.keepAliveWithoutCalls", new Object[] {true});
+            ordererProperties.put("grpc.NettyChannelBuilderOption.keepAliveTime", new Object[]{5L, TimeUnit.MINUTES});
+            ordererProperties.put("grpc.NettyChannelBuilderOption.keepAliveTimeout", new Object[]{8L, TimeUnit.SECONDS});
+            ordererProperties.put("grpc.NettyChannelBuilderOption.keepAliveWithoutCalls", new Object[]{true});
 
             orderers.add(client.newOrderer(orderName, sampleOrg.getOrdererLocation(orderName),
                     ordererProperties));
@@ -870,8 +870,8 @@ public class End2endIT {
 
             final Properties eventHubProperties = testConfig.getEventHubProperties(eventHubName);
 
-            eventHubProperties.put("grpc.NettyChannelBuilderOption.keepAliveTime", new Object[] {5L, TimeUnit.MINUTES});
-            eventHubProperties.put("grpc.NettyChannelBuilderOption.keepAliveTimeout", new Object[] {8L, TimeUnit.SECONDS});
+            eventHubProperties.put("grpc.NettyChannelBuilderOption.keepAliveTime", new Object[]{5L, TimeUnit.MINUTES});
+            eventHubProperties.put("grpc.NettyChannelBuilderOption.keepAliveTimeout", new Object[]{8L, TimeUnit.SECONDS});
 
             EventHub eventHub = client.newEventHub(eventHubName, sampleOrg.getEventHubLocation(eventHubName),
                     eventHubProperties);
@@ -897,21 +897,27 @@ public class End2endIT {
 
     void blockWalker(HFClient client, Channel channel) throws InvalidArgumentException, ProposalException, IOException {
         try {
+//            区块链总信息（高度  当前区块信息   前一个区块信息）
             BlockchainInfo channelInfo = channel.queryBlockchainInfo();
 
+//           区块号（区块高度-1）
             for (long current = channelInfo.getHeight() - 1; current > -1; --current) {
+//               区块信息
                 BlockInfo returnedBlock = channel.queryBlockByNumber(current);
+//                区块号
                 final long blockNumber = returnedBlock.getBlockNumber();
-
+//  当前区块数据hash、前一个区块hash、当前区块hash
                 out("current block number %d has data hash: %s", blockNumber, Hex.encodeHexString(returnedBlock.getDataHash()));
                 out("current block number %d has previous hash id: %s", blockNumber, Hex.encodeHexString(returnedBlock.getPreviousHash()));
                 out("current block number %d has calculated block hash is %s", blockNumber, Hex.encodeHexString(SDKUtils.calculateBlockHash(client,
                         blockNumber, returnedBlock.getPreviousHash(), returnedBlock.getDataHash())));
-
+// 包含的信封数
                 final int envelopeCount = returnedBlock.getEnvelopeCount();
                 assertEquals(1, envelopeCount);
                 out("current block number %d has %d envelope count:", blockNumber, returnedBlock.getEnvelopeCount());
                 int i = 0;
+
+//              能获取到区块内交易数量   可以通过returnedBlock.getTransactionCount()直观获取到    其内部的实现  就是给基于下面的逻辑
                 int transactionCount = 0;
                 for (BlockInfo.EnvelopeInfo envelopeInfo : returnedBlock.getEnvelopeInfos()) {
                     ++i;
@@ -919,40 +925,44 @@ public class End2endIT {
                     out("  Transaction number %d has transaction id: %s", i, envelopeInfo.getTransactionID());
                     final String channelId = envelopeInfo.getChannelId();
                     assertTrue("foo".equals(channelId) || "bar".equals(channelId));
-
+// 通道 时代 时间戳 信封类型  nonce随机值  证书id
                     out("  Transaction number %d has channel id: %s", i, channelId);
                     out("  Transaction number %d has epoch: %d", i, envelopeInfo.getEpoch());
                     out("  Transaction number %d has transaction timestamp: %tB %<te,  %<tY  %<tT %<Tp", i, envelopeInfo.getTimestamp());
                     out("  Transaction number %d has type id: %s", i, "" + envelopeInfo.getType());
                     out("  Transaction number %d has nonce : %s", i, "" + Hex.encodeHexString(envelopeInfo.getNonce()));
+//                    mspid  以及   证书
                     out("  Transaction number %d has submitter mspid: %s,  certificate: %s", i, envelopeInfo.getCreator().getMspid(), envelopeInfo.getCreator().getId());
 
+//                    交易类型的信封
                     if (envelopeInfo.getType() == TRANSACTION_ENVELOPE) {
-                        ++transactionCount;
+                        ++transactionCount;  // 交易数量
                         BlockInfo.TransactionEnvelopeInfo transactionEnvelopeInfo = (BlockInfo.TransactionEnvelopeInfo) envelopeInfo;
 
                         out("  Transaction number %d has %d actions", i, transactionEnvelopeInfo.getTransactionActionInfoCount());
                         assertEquals(1, transactionEnvelopeInfo.getTransactionActionInfoCount()); // for now there is only 1 action per transaction.
-                        out("  Transaction number %d isValid %b", i, transactionEnvelopeInfo.isValid());
+                        out("  Transaction number %d isValid %b", i, transactionEnvelopeInfo.isValid());  // 交易是否有效   commiter  tag it  0 as  valid
                         assertEquals(transactionEnvelopeInfo.isValid(), true);
                         out("  Transaction number %d validation code %d", i, transactionEnvelopeInfo.getValidationCode());
                         assertEquals(0, transactionEnvelopeInfo.getValidationCode());
 
+//                      交易行为信息
                         int j = 0;
                         for (BlockInfo.TransactionEnvelopeInfo.TransactionActionInfo transactionActionInfo : transactionEnvelopeInfo.getTransactionActionInfos()) {
                             ++j;
-                            out("   Transaction action %d has response status %d", j, transactionActionInfo.getResponseStatus());
+                            out("   Transaction action %d has response status %d", j, transactionActionInfo.getResponseStatus());  //   交易响应
                             assertEquals(200, transactionActionInfo.getResponseStatus());
                             out("   Transaction action %d has response message bytes as string: %s", j,
                                     printableString(new String(transactionActionInfo.getResponseMessageBytes(), "UTF-8")));
-                            out("   Transaction action %d has %d endorsements", j, transactionActionInfo.getEndorsementsCount());
+                            out("   Transaction action %d has %d endorsements", j, transactionActionInfo.getEndorsementsCount());   // 背书数量
                             assertEquals(2, transactionActionInfo.getEndorsementsCount());
-
+//   背书信息
                             for (int n = 0; n < transactionActionInfo.getEndorsementsCount(); ++n) {
                                 BlockInfo.EndorserInfo endorserInfo = transactionActionInfo.getEndorsementInfo(n);
-                                out("Endorser %d signature: %s", n, Hex.encodeHexString(endorserInfo.getSignature()));
-                                out("Endorser %d endorser: mspid %s \n certificate %s", n, endorserInfo.getMspid(), endorserInfo.getId());
+                                out("Endorser %d signature: %s", n, Hex.encodeHexString(endorserInfo.getSignature()));  //背书者的签名
+                                out("Endorser %d endorser: mspid %s \n certificate %s", n, endorserInfo.getMspid(), endorserInfo.getId()); // 背书者的msp   证书
                             }
+//                            入参信息
                             out("   Transaction action %d has %d chaincode input arguments", j, transactionActionInfo.getChaincodeInputArgsCount());
                             for (int z = 0; z < transactionActionInfo.getChaincodeInputArgsCount(); ++z) {
                                 out("     Transaction action %d has chaincode input argument %d is: %s", j, z,
@@ -963,13 +973,13 @@ public class End2endIT {
                                     transactionActionInfo.getProposalResponseStatus());
                             out("   Transaction action %d proposal response payload: %s", j,
                                     printableString(new String(transactionActionInfo.getProposalResponsePayload())));
-
+//chaincode 信息
                             String chaincodeIDName = transactionActionInfo.getChaincodeIDName();
                             String chaincodeIDVersion = transactionActionInfo.getChaincodeIDVersion();
                             String chaincodeIDPath = transactionActionInfo.getChaincodeIDPath();
                             out("   Transaction action %d proposal chaincodeIDName: %s, chaincodeIDVersion: %s,  chaincodeIDPath: %s ", j,
                                     chaincodeIDName, chaincodeIDVersion, chaincodeIDPath);
-
+//特殊指定块的信息
                             // Check to see if we have our expected event.
                             if (blockNumber == 2) {
                                 ChaincodeEvent chaincodeEvent = transactionActionInfo.getEvent();
@@ -984,11 +994,11 @@ public class End2endIT {
                                 assertEquals("1", chaincodeIDVersion);
 
                             }
-
+//读写集信息
                             TxReadWriteSetInfo rwsetInfo = transactionActionInfo.getTxReadWriteSet();
                             if (null != rwsetInfo) {
                                 out("   Transaction action %d has %d name space read write sets", j, rwsetInfo.getNsRwsetCount());
-
+// 不同ns的读写集
                                 for (TxReadWriteSetInfo.NsRwsetInfo nsRwsetInfo : rwsetInfo.getNsRwsetInfos()) {
                                     final String namespace = nsRwsetInfo.getNamespace();
                                     KvRwset.KVRWSet rws = nsRwsetInfo.getRwset();
@@ -996,7 +1006,7 @@ public class End2endIT {
                                     int rs = -1;
                                     for (KvRwset.KVRead readList : rws.getReadsList()) {
                                         rs++;
-
+// key的信息
                                         out("     Namespace %s read set %d key %s  version [%d:%d]", namespace, rs, readList.getKey(),
                                                 readList.getVersion().getBlockNum(), readList.getVersion().getTxNum());
 
@@ -1018,7 +1028,7 @@ public class End2endIT {
                                             }
                                         }
                                     }
-
+//  write 集合 信息
                                     rs = -1;
                                     for (KvRwset.KVWrite writeList : rws.getWritesList()) {
                                         rs++;
