@@ -15,18 +15,21 @@ ORG_HYPERLEDGER_FABRIC_SDKTEST_VERSION=${ORG_HYPERLEDGER_FABRIC_SDKTEST_VERSION:
 
 function clean(){
 
-  rm -rf /var/hyperledger/*
-
+# 删除链数据
+#  rm -rf /var/hyperledger/*
+#　？
   if [ -e "/tmp/HFCSampletest.properties" ];then
     rm -f "/tmp/HFCSampletest.properties"
   fi
 
+# 删除运行中、down掉的容器
   lines=`docker ps -a | grep 'dev-peer' | wc -l`
 
   if [ "$lines" -gt 0 ]; then
     docker ps -a | grep 'dev-peer' | awk '{print $1}' | xargs docker rm -f
   fi
 
+# 删除dev-peer相关的镜像文件
   lines=`docker images | grep 'dev-peer' | grep 'dev-peer' | wc -l`
   if [ "$lines" -gt 0 ]; then
     docker images | grep 'dev-peer' | awk '{print $1}' | xargs docker rmi -f
@@ -61,7 +64,7 @@ for opt in "$@"
 do
 
     case "$opt" in
-        up)
+        up)  
             up
             ;;
         down)
