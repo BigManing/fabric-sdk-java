@@ -130,56 +130,60 @@ public class TestConfig {
             runningTLS = null != sdkProperties.getProperty(INTEGRATIONTESTSTLS, null);
             runningFabricCATLS = runningTLS;
             runningFabricTLS = runningTLS;
-
+            //1 添加 组织的信息
             for (Map.Entry<Object, Object> x : sdkProperties.entrySet()) {
                 final String key = x.getKey() + "";
                 final String val = x.getValue() + "";
 
                 if (key.startsWith(INTEGRATIONTESTS_ORG)) {
-
+                    // 匹配 有mspid 的地方
                     Matcher match = orgPat.matcher(key);
 
                     if (match.matches() && match.groupCount() == 1) {
                         String orgName = match.group(1).trim();
+                        // 存入组织的信息
                         sampleOrgs.put(orgName, new SampleOrg(orgName, val.trim()));
 
                     }
                 }
             }
-
+            // 2 根据组织 查找细枝信息
             for (Map.Entry<String, SampleOrg> org : sampleOrgs.entrySet()) {
                 final SampleOrg sampleOrg = org.getValue();
                 final String orgName = org.getKey();
-
+                // 封装peer名称  peerIP地址
                 String peerNames = sdkProperties.getProperty(INTEGRATIONTESTS_ORG + orgName + ".peer_locations");
+                // 单个peer
                 String[] ps = peerNames.split("[ \t]*,[ \t]*");
                 for (String peer : ps) {
+                    // [name,IP]
                     String[] nl = peer.split("[ \t]*@[ \t]*");
                     sampleOrg.addPeerLocation(nl[0], grpcTLSify(nl[1]));
                 }
-
+                    
+                // 封装组织域名
                 final String domainName = sdkProperties.getProperty(INTEGRATIONTESTS_ORG + orgName + ".domname");
 
                 sampleOrg.setDomainName(domainName);
-
+                // 封装组织orderer名称  ordererIP地址
                 String ordererNames = sdkProperties.getProperty(INTEGRATIONTESTS_ORG + orgName + ".orderer_locations");
                 ps = ordererNames.split("[ \t]*,[ \t]*");
                 for (String peer : ps) {
                     String[] nl = peer.split("[ \t]*@[ \t]*");
                     sampleOrg.addOrdererLocation(nl[0], grpcTLSify(nl[1]));
                 }
-
+                // 封装组织 事件名称 地址
                 String eventHubNames = sdkProperties.getProperty(INTEGRATIONTESTS_ORG + orgName + ".eventhub_locations");
                 ps = eventHubNames.split("[ \t]*,[ \t]*");
                 for (String peer : ps) {
                     String[] nl = peer.split("[ \t]*@[ \t]*");
                     sampleOrg.addEventHubLocation(nl[0], grpcTLSify(nl[1]));
                 }
-
+                // 封装ca 信息
                 sampleOrg.setCALocation(httpTLSify(sdkProperties.getProperty((INTEGRATIONTESTS_ORG + org.getKey() + ".ca_location"))));
 
                 sampleOrg.setCAName(sdkProperties.getProperty((INTEGRATIONTESTS_ORG + org.getKey() + ".caName")));
-
+                // 添加证书信息
                 if (runningFabricCATLS) {
                     String cert = "src/test/fixture/sdkintegration/e2e-2Orgs/FAB_CONFIG_GEN_VERS/crypto-config/peerOrganizations/DNAME/ca/ca.DNAME-cert.pem"
                             .replaceAll("DNAME", domainName).replaceAll("FAB_CONFIG_GEN_VERS", FAB_CONFIG_GEN_VERS);
@@ -299,7 +303,7 @@ public class TestConfig {
         return getEndPointProperties("orderer", name);
 
     }
-
+    // 获取某个组件证书材料的信息
     public Properties getEndPointProperties(final String type, final String name) {
         Properties ret = new Properties();
 
