@@ -20,21 +20,14 @@ import java.io.StringWriter;
 import java.net.MalformedURLException;
 import java.nio.file.Paths;
 import java.security.PrivateKey;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-import java.util.Vector;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 import org.apache.commons.codec.binary.Hex;
 import org.bouncycastle.openssl.PEMWriter;
 import org.hyperledger.fabric.protos.ledger.rwset.kvrwset.KvRwset;
+import org.hyperledger.fabric.protos.peer.Query;
 import org.hyperledger.fabric.sdk.BlockEvent;
 import org.hyperledger.fabric.sdk.BlockInfo;
 import org.hyperledger.fabric.sdk.BlockchainInfo;
@@ -234,8 +227,41 @@ public class End2endIT {
         assertTrue(barChannel.isInitialized());
         out("That's all folks!");
 
+        peerWalker(client, barChannel);
     }
 
+    /**
+     * 解析peer
+     *      所加入到channel信息
+     *      运行合约名称信息
+     */
+    private void peerWalker(HFClient client, Channel barChannel) {
+        // 获取所有的peer的对象
+        Collection<Peer> peers = barChannel.getPeers();
+        for (Peer peer : peers) {
+            try {
+                //1 获取peer所在的channel名称
+                Set<String> channelNames = client.queryChannels(peer);
+                // 2 获取peer运行的合约
+                Set<String> chaincodeNames = new HashSet<>();
+                List<Query.ChaincodeInfo> chaincodeInfos = client.queryInstalledChaincodes(peer);
+                for (Query.ChaincodeInfo chaincodeInfo : chaincodeInfos) {
+                    //是否运行
+                    boolean initialized = chaincodeInfo.isInitialized();
+                    if (initialized) {
+                        chaincodeNames.add(chaincodeInfo.getName());
+                    }
+                }
+                out("peer名称：%s ",peer.getName());
+                out("   加入的channel名称：%s ",channelNames);
+                out("   运行的chaincode名称：%s ",channelNames);
+            } catch (InvalidArgumentException e) {
+                e.printStackTrace();
+            } catch (ProposalException e) {
+                e.printStackTrace();
+            }
+        }
+    }
     /**
      * Will register and enroll users persisting them to samplestore.
      *
